@@ -35,6 +35,6 @@ class Config:
             )
         return True
 
-
 # Validate configuration on import
 Config.validate()
+
