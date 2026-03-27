@@ -1,7 +1,6 @@
 {
-  "run_id": "run_012",
-  "spec_filename": "sample_sheet.pdf",
+  "run_id": "run_013",
+  "spec_filename": "requirements.txt",
   "rtl_filename": "sample_design.v",
-  "uploaded_at": "2026-03-27 11:08 UTC",
-  "triggered_at": "2026-03-27T11:15:06.229622"
+  "uploaded_at": "2026-03-27 11:15 UTC"
 }
