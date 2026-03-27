@@ -55,7 +55,7 @@ class VerilogVerificationAgent:
         
         # Initialize Gemini model
         self.model = ChatGoogleGenerativeAI(
-            model=os.getenv("GEMINI_MODEL", "gemini-flash-latest"),
+            model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite"),
             google_api_key=api_key,
             temperature=0.2  # Lower temperature for more consistent analysis
         )
@@ -111,6 +111,23 @@ class VerilogVerificationAgent:
             return "".join(str(item.get("text", item)) if isinstance(item, dict) else str(item) for item in content)
         return str(content)
 
+    def _safe_invoke(self, prompt: str):
+        """Invoke the model with automatic retry for 429 rate limits"""
+        import time
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                return self.model.invoke(prompt)
+            except Exception as e:
+                error_msg = str(e)
+                if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg or "Quota" in error_msg:
+                    if attempt < max_retries - 1:
+                        sleep_time = 30 * (attempt + 1)
+                        print(f"⚠ API Rate limit hit. Waiting {sleep_time}s before retry {attempt+1}/{max_retries}...")
+                        time.sleep(sleep_time)
+                        continue
+                raise
+
     def _extract_datasheet_content(self, datasheet_path: str) -> str:
         """Extract text content from PDF or text datasheet"""
         try:
@@ -159,7 +176,7 @@ class VerilogVerificationAgent:
             Provide a detailed technical summary focusing on aspects relevant to Verilog implementation.
             """
             
-            response = self._get_text(self.model.invoke(prompt).content)
+            response = self._get_text(self._safe_invoke(prompt).content)
             return response
             
         except Exception as e:
@@ -193,7 +210,7 @@ class VerilogVerificationAgent:
         ```
         """
         
-        code_analysis = self._get_text(self.model.invoke(code_analysis_prompt).content)
+        code_analysis = self._get_text(self._safe_invoke(code_analysis_prompt).content)
         
         # Combined analysis
         combined_analysis = f"""
@@ -269,7 +286,7 @@ class VerilogVerificationAgent:
         ISSUES_FOUND: 0
         """
         
-        response = self._get_text(self.model.invoke(prompt).content)
+        response = self._get_text(self._safe_invoke(prompt).content)
         
         # Parse issues
         issues = self._parse_issues(response)
@@ -354,7 +371,7 @@ class VerilogVerificationAgent:
         Respond ONLY with the fixed Verilog code, no explanations outside the code.
         """
         
-        fixed_code = self._get_text(self.model.invoke(prompt).content)
+        fixed_code = self._get_text(self._safe_invoke(prompt).content)
         
         # Extract code from markdown if present
         if "```verilog" in fixed_code:
@@ -397,7 +414,7 @@ class VerilogVerificationAgent:
         Provide brief explanation.
         """
         
-        verification = self._get_text(self.model.invoke(prompt).content)
+        verification = self._get_text(self._safe_invoke(prompt).content)
         
         if "VERIFIED" in verification.upper():
             state["status"] = "verified"
@@ -477,7 +494,7 @@ class VerilogVerificationAgent:
         Format the report professionally with clear sections and bullet points.
         """
         
-        report = self._get_text(self.model.invoke(prompt).content)
+        report = self._get_text(self._safe_invoke(prompt).content)
         state["final_report"] = report
         
         print("✓ Report generated successfully")
